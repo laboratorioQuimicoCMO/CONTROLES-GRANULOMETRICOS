@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel - Control Granulométrico</title>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyCakV6xl-XPLWJpKDsvZZ8b-JOrBHZJEcU",
+    authDomain: "controlgranulometrico.firebaseapp.com",
+    projectId: "controlgranulometrico",
+    storageBucket: "controlgranulometrico.firebasestorage.app",
+    messagingSenderId: "223946520021",
+    appId: "1:223946520021:web:0d375d67fd159e27a0795c"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const COLECCION = "control_granulometrico";
+</script>
+
+<style>
+  :root{
+    --teal:#0f6e6e;
+    --teal-dark:#0a4f4f;
+    --verde:#2e7d32;
+    --verde-bg:#e8f5e9;
+    --rojo:#c62828;
+    --rojo-bg:#fdecea;
+    --gris:#f4f5f6;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Segoe UI', Arial, sans-serif;
+    background:var(--gris);
+    color:#1c2530;
+  }
+  header{
+    background:linear-gradient(135deg,var(--teal),var(--teal-dark));
+    color:#fff;
+    padding:20px 24px;
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+  }
+  header h1{margin:0;font-size:22px;}
+  .toolbar{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    align-items:center;
+  }
+  .toolbar input, .toolbar select{
+    padding:10px 12px;
+    border-radius:8px;
+    border:none;
+    font-size:14px;
+  }
+  .btn{
+    padding:10px 16px;
+    border-radius:8px;
+    border:none;
+    font-weight:700;
+    cursor:pointer;
+    font-size:14px;
+  }
+  .btn-excel{background:#1d7a3c;color:#fff;}
+  .btn-refrescar{background:#fff;color:var(--teal-dark);}
+
+  .contenedor{padding:18px 24px 60px;}
+
+  .resumen-cards{
+    display:flex;
+    gap:14px;
+    flex-wrap:wrap;
+    margin-bottom:18px;
+  }
+  .stat{
+    background:#fff;
+    border-radius:12px;
+    padding:14px 20px;
+    box-shadow:0 1px 6px rgba(0,0,0,.06);
+    min-width:150px;
+  }
+  .stat .num{font-size:26px;font-weight:800;color:var(--teal-dark);}
+  .stat .lbl{font-size:13px;color:#777;}
+
+  .tabla-wrap{
+    background:#fff;
+    border-radius:12px;
+    overflow:auto;
+    box-shadow:0 1px 6px rgba(0,0,0,.06);
+  }
+  table{
+    border-collapse:collapse;
+    width:100%;
+    font-size:14px;
+    white-space:nowrap;
+  }
+  th, td{
+    padding:10px 14px;
+    border-bottom:1px solid #eee;
+    text-align:left;
+  }
+  th{
+    background:var(--gris);
+    color:#444;
+    position:sticky;
+    top:0;
+  }
+  tr:hover{background:#fafafa;}
+  .pill{
+    padding:4px 10px;
+    border-radius:999px;
+    font-weight:700;
+    font-size:12px;
+  }
+  .pill.pasa{background:var(--verde-bg);color:var(--verde);}
+  .pill.nopasa{background:var(--rojo-bg);color:var(--rojo);}
+
+  .alerta-faltante{
+    background:#fff4e0;
+    color:#a86400;
+    border-radius:12px;
+    padding:14px 18px;
+    margin-bottom:18px;
+    font-size:14px;
+  }
+  .alerta-faltante b{display:block;margin-bottom:6px;font-size:15px;}
+
+  .vacio{
+    text-align:center;
+    padding:60px 20px;
+    color:#888;
+  }
+
+  /* Pantalla de acceso */
+  #gate{
+    position:fixed;
+    inset:0;
+    background:linear-gradient(135deg,var(--teal),var(--teal-dark));
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:999;
+  }
+  #gate .caja{
+    background:#fff;
+    border-radius:16px;
+    padding:36px 32px;
+    width:320px;
+    text-align:center;
+    box-shadow:0 10px 30px rgba(0,0,0,.25);
+  }
+  #gate h2{margin:0 0 6px;color:var(--teal-dark);font-size:20px;}
+  #gate p{margin:0 0 18px;color:#777;font-size:14px;}
+  #gate input{
+    width:100%;
+    font-size:18px;
+    padding:12px;
+    border:2px solid #ccc;
+    border-radius:10px;
+    text-align:center;
+    margin-bottom:14px;
+  }
+  #gate button{
+    width:100%;
+    font-size:16px;
+    font-weight:700;
+    padding:12px;
+    border:none;
+    border-radius:10px;
+    background:var(--teal);
+    color:#fff;
+    cursor:pointer;
+  }
+  #gate .error{color:var(--rojo);font-size:13px;margin-top:10px;min-height:16px;}
+  #contenidoPrincipal{display:none;}
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="caja">
+    <h2>🔒 Panel restringido</h2>
+    <p>Ingresá la contraseña para ver los datos</p>
+    <input type="password" id="passInput" placeholder="Contraseña">
+    <button id="btnEntrar">Entrar</button>
+    <div class="error" id="passError"></div>
+  </div>
+</div>
+
+<div id="contenidoPrincipal">
+
+<header>
+  <h1>📊 Panel de Control Granulométrico</h1>
+  <div class="toolbar">
+    <input type="text" id="buscador" placeholder="Buscar despacho o muestra...">
+    <select id="filtroMalla">
+      <option value="">Todas las mallas</option>
+      <option value="10">Malla #10</option>
+      <option value="200">Malla #200</option>
+    </select>
+    <select id="filtroResultado">
+      <option value="">Todos los resultados</option>
+      <option value="PASA">Solo PASA</option>
+      <option value="NO PASA">Solo NO PASA</option>
+    </select>
+    <button class="btn btn-refrescar" id="btnRefrescar">🔄 Actualizar</button>
+    <button class="btn btn-excel" id="btnExcel">⬇️ Descargar Excel</button>
+  </div>
+</header>
+
+<div class="contenedor">
+
+  <div class="resumen-cards" id="resumenCards"></div>
+
+  <div id="avisoFaltantes"></div>
+
+  <div class="tabla-wrap">
+    <table id="tabla">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Tipo</th>
+          <th>Despacho</th>
+          <th>Nombre muestra</th>
+          <th>Malla</th>
+          <th>Peso inicial</th>
+          <th>Peso retenido</th>
+          <th>% Pasante</th>
+          <th>Resultado</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="vacio" id="vacio" style="display:none;">Todavía no hay registros cargados.</div>
+  </div>
+
+</div>
+
+<script>
+const CLAVE_PANEL = "Cerro2026"; // <-- cambiá esta contraseña por la que quieras
+
+document.getElementById("btnEntrar").addEventListener("click", intentarEntrar);
+document.getElementById("passInput").addEventListener("keyup", e=>{ if(e.key==="Enter") intentarEntrar(); });
+
+function intentarEntrar(){
+  const valor = document.getElementById("passInput").value;
+  if(valor === CLAVE_PANEL){
+    sessionStorage.setItem("panelOk","1");
+    mostrarPanel();
+  } else {
+    document.getElementById("passError").textContent = "Contraseña incorrecta.";
+  }
+}
+
+function mostrarPanel(){
+  document.getElementById("gate").style.display = "none";
+  document.getElementById("contenidoPrincipal").style.display = "block";
+  cargarDatos();
+}
+
+if(sessionStorage.getItem("panelOk") === "1"){
+  mostrarPanel();
+}
+
+let TODOS = [];
+
+async function cargarDatos(){
+  document.getElementById("tbody").innerHTML = `<tr><td colspan="9" style="text-align:center;padding:30px;color:#888;">Cargando...</td></tr>`;
+  const snap = await db.collection(COLECCION).orderBy("fecha","desc").get();
+  TODOS = snap.docs.map(d => {
+    const data = d.data();
+    return {
+      id: d.id,
+      fecha: data.fecha ? data.fecha.toDate() : null,
+      tipo: data.tipo_muestra || "",
+      despacho: data.despacho || "(Planta)",
+      clave: data.clave || "",
+      nombre: data.nombre_muestra || "",
+      malla: data.malla || "",
+      unidad: data.unidad || "",
+      peso_inicial: data.peso_inicial,
+      peso_retenido: data.peso_retenido,
+      pct: data.porcentaje_pasante,
+      resultado: data.resultado || ""
+    };
+  });
+  pintarTodo();
+}
+
+function pintarTodo(){
+  const texto = document.getElementById("buscador").value.trim().toLowerCase();
+  const malla = document.getElementById("filtroMalla").value;
+  const resultado = document.getElementById("filtroResultado").value;
+
+  let filtrados = TODOS.filter(r=>{
+    if(malla && r.malla !== malla) return false;
+    if(resultado && r.resultado !== resultado) return false;
+    if(texto && !(r.despacho.toLowerCase().includes(texto) || r.nombre.toLowerCase().includes(texto))) return false;
+    return true;
+  });
+
+  pintarResumen(filtrados);
+  pintarTabla(filtrados);
+  pintarFaltantes();
+}
+
+function pintarResumen(filtrados){
+  const total = filtrados.length;
+  const pasa = filtrados.filter(r=>r.resultado==="PASA").length;
+  const nopasa = filtrados.filter(r=>r.resultado==="NO PASA").length;
+  document.getElementById("resumenCards").innerHTML = `
+    <div class="stat"><div class="num">${total}</div><div class="lbl">Registros</div></div>
+    <div class="stat"><div class="num" style="color:var(--verde)">${pasa}</div><div class="lbl">PASA</div></div>
+    <div class="stat"><div class="num" style="color:var(--rojo)">${nopasa}</div><div class="lbl">NO PASA</div></div>
+  `;
+}
+
+function pintarTabla(filtrados){
+  const tbody = document.getElementById("tbody");
+  document.getElementById("vacio").style.display = filtrados.length ? "none" : "block";
+  tbody.innerHTML = filtrados.map(r=>`
+    <tr>
+      <td>${r.fecha ? r.fecha.toLocaleString('es-AR') : "-"}</td>
+      <td>${r.tipo}</td>
+      <td>${r.despacho}</td>
+      <td>${r.nombre}</td>
+      <td>#${r.malla}</td>
+      <td>${r.peso_inicial ?? "-"} ${r.unidad}</td>
+      <td>${r.peso_retenido ?? "-"} ${r.unidad}</td>
+      <td><b>${r.pct != null ? r.pct.toFixed(2)+"%" : "-"}</b></td>
+      <td><span class="pill ${r.resultado==='PASA'?'pasa':'nopasa'}">${r.resultado}</span></td>
+    </tr>
+  `).join("");
+}
+
+// Detecta despachos que tienen SOLO una de las dos mallas (10 o 200)
+function pintarFaltantes(){
+  const porClave = {};
+  TODOS.forEach(r=>{
+    if(!porClave[r.clave]) porClave[r.clave] = new Set();
+    porClave[r.clave].add(r.malla);
+  });
+  const incompletos = Object.entries(porClave)
+    .filter(([clave, mallas]) => mallas.size === 1)
+    .map(([clave, mallas]) => `${clave} (falta malla #${mallas.has("10") ? "200" : "10"})`);
+
+  const cont = document.getElementById("avisoFaltantes");
+  if(incompletos.length === 0){ cont.innerHTML = ""; return; }
+  cont.innerHTML = `
+    <div class="alerta-faltante">
+      <b>⚠️ Despachos con control incompleto (falta una malla):</b>
+      ${incompletos.join(" · ")}
+    </div>
+  `;
+}
+
+document.getElementById("buscador").addEventListener("input", pintarTodo);
+document.getElementById("filtroMalla").addEventListener("change", pintarTodo);
+document.getElementById("filtroResultado").addEventListener("change", pintarTodo);
+document.getElementById("btnRefrescar").addEventListener("click", cargarDatos);
+
+document.getElementById("btnExcel").addEventListener("click", ()=>{
+  const filas = TODOS.map(r=>({
+    "Fecha": r.fecha ? r.fecha.toLocaleString('es-AR') : "",
+    "Tipo de muestra": r.tipo,
+    "Despacho": r.despacho,
+    "Nombre de muestra": r.nombre,
+    "Malla": r.malla,
+    "Unidad": r.unidad,
+    "Peso inicial": r.peso_inicial,
+    "Peso retenido": r.peso_retenido,
+    "% Pasante": r.pct,
+    "Resultado": r.resultado
+  }));
+  const ws = XLSX.utils.json_to_sheet(filas);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Granulometria");
+  const fechaArchivo = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `control_granulometrico_${fechaArchivo}.xlsx`);
+});
+
+</script>
+
+</body>
+</html>

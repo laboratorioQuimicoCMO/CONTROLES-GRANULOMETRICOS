@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Control Granulométrico</title>
+
+<!-- ============================================================
+     FIREBASE: reemplazá estos 6 valores por los de tu proyecto.
+     (Firebase Console > Configuración del proyecto > Tus apps > SDK config)
+     Podés usar el MISMO proyecto que ya tenés para la cartelera,
+     o crear uno nuevo: console.firebase.google.com
+     ============================================================ -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyCakV6xl-XPLWJpKDsvZZ8b-JOrBHZJEcU",
+    authDomain: "controlgranulometrico.firebaseapp.com",
+    projectId: "controlgranulometrico",
+    storageBucket: "controlgranulometrico.firebasestorage.app",
+    messagingSenderId: "223946520021",
+    appId: "1:223946520021:web:0d375d67fd159e27a0795c"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const COLECCION = "control_granulometrico";
+</script>
+
+<style>
+  :root{
+    --teal:#0f6e6e;
+    --teal-dark:#0a4f4f;
+    --verde:#2e7d32;
+    --verde-bg:#e8f5e9;
+    --rojo:#c62828;
+    --rojo-bg:#fdecea;
+    --gris:#f4f5f6;
+    --texto:#1c2530;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Segoe UI', Arial, sans-serif;
+    background:var(--gris);
+    color:var(--texto);
+    min-height:100vh;
+  }
+  header{
+    background:linear-gradient(135deg,var(--teal),var(--teal-dark));
+    color:#fff;
+    padding:22px 16px;
+    text-align:center;
+  }
+  header h1{margin:0;font-size:28px;}
+  header p{margin:6px 0 0;font-size:15px;opacity:.9;}
+
+  .wrap{
+    max-width:520px;
+    margin:0 auto;
+    padding:18px 16px 60px;
+  }
+  .card{
+    background:#fff;
+    border-radius:16px;
+    box-shadow:0 2px 10px rgba(0,0,0,.08);
+    padding:26px 22px;
+    margin-bottom:18px;
+  }
+  .stepper{
+    display:flex;
+    justify-content:center;
+    gap:6px;
+    margin:14px 0 0;
+  }
+  .dot{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.4);}
+  .dot.active{background:#fff;}
+
+  h2{
+    font-size:20px;
+    margin:0 0 18px;
+    color:var(--teal-dark);
+  }
+
+  .grid-btn{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+  }
+  .grid-btn.cols3{grid-template-columns:1fr 1fr 1fr;}
+
+  button.opt{
+    font-size:22px;
+    font-weight:700;
+    padding:22px 8px;
+    border:2px solid var(--teal);
+    border-radius:14px;
+    background:#fff;
+    color:var(--teal-dark);
+    cursor:pointer;
+    transition:.15s;
+  }
+  button.opt:hover, button.opt.selected{
+    background:var(--teal);
+    color:#fff;
+  }
+
+  label.campo{
+    display:block;
+    font-size:16px;
+    font-weight:600;
+    margin:18px 0 8px;
+    color:#555;
+  }
+  input[type=text], input[type=number]{
+    width:100%;
+    font-size:28px;
+    padding:14px 12px;
+    border:2px solid #ccc;
+    border-radius:12px;
+    text-align:center;
+    font-weight:700;
+  }
+  input:focus{outline:none;border-color:var(--teal);}
+
+  .preview-despacho{
+    text-align:center;
+    font-size:26px;
+    font-weight:800;
+    color:var(--teal-dark);
+    background:var(--gris);
+    border-radius:12px;
+    padding:14px;
+    margin:10px 0 4px;
+    letter-spacing:.5px;
+    word-break:break-all;
+  }
+
+  .btn-grande{
+    width:100%;
+    font-size:24px;
+    font-weight:800;
+    padding:20px;
+    border:none;
+    border-radius:14px;
+    background:var(--teal);
+    color:#fff;
+    cursor:pointer;
+    margin-top:22px;
+  }
+  .btn-grande:disabled{background:#b9c4c4;cursor:not-allowed;}
+  .btn-secundario{
+    width:100%;
+    font-size:17px;
+    font-weight:700;
+    padding:14px;
+    border:2px solid var(--teal);
+    border-radius:14px;
+    background:#fff;
+    color:var(--teal-dark);
+    cursor:pointer;
+    margin-top:10px;
+  }
+
+  .resultado-pct{
+    text-align:center;
+    font-size:64px;
+    font-weight:900;
+    margin:6px 0 2px;
+  }
+  .resultado-banner{
+    text-align:center;
+    font-size:30px;
+    font-weight:900;
+    border-radius:14px;
+    padding:18px;
+    margin:12px 0;
+  }
+  .pasa{background:var(--verde-bg);color:var(--verde);}
+  .nopasa{background:var(--rojo-bg);color:var(--rojo);}
+
+  .aviso{
+    font-size:15px;
+    text-align:center;
+    padding:12px;
+    border-radius:10px;
+    margin:14px 0;
+    font-weight:600;
+  }
+  .aviso.ok{background:var(--verde-bg);color:var(--verde);}
+  .aviso.warn{background:#fff4e0;color:#a86400;}
+
+  .resumen{
+    background:var(--gris);
+    border-radius:12px;
+    padding:14px 16px;
+    font-size:15px;
+    line-height:1.7;
+  }
+  .resumen b{color:var(--teal-dark);}
+
+  .hidden{display:none !important;}
+
+  .spinner{
+    text-align:center;
+    font-size:18px;
+    color:#777;
+    padding:20px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📋 Control Granulométrico</h1>
+  <p>Cargá los datos de pesado — el cálculo se hace solo</p>
+  <div class="stepper" id="stepper"></div>
+</header>
+
+<div class="wrap">
+
+  <!-- PASO 1: tipo de muestra -->
+  <div class="card paso" id="paso1">
+    <h2>1. ¿Qué tipo de muestra es?</h2>
+    <div class="grid-btn cols3" id="tipos">
+      <button class="opt" data-tipo="UG">UG</button>
+      <button class="opt" data-tipo="MP">MP</button>
+      <button class="opt" data-tipo="TR">TR</button>
+      <button class="opt" data-tipo="DDH">DDH</button>
+      <button class="opt" data-tipo="BH">BH</button>
+      <button class="opt" data-tipo="AR">AR</button>
+    </div>
+    <button class="btn-secundario" id="btnPlanta">🏭 Es de Planta (sin despacho)</button>
+  </div>
+
+  <!-- PASO 2: numero de despacho -->
+  <div class="card paso hidden" id="paso2">
+    <h2>2. Número de despacho</h2>
+    <label class="campo" id="lblNumero">Escribí solo los últimos números:</label>
+    <input type="text" id="inputNumero" inputmode="numeric" placeholder="Ej: 178">
+    <div class="preview-despacho" id="previewDespacho">—</div>
+    <button class="btn-grande" id="btnConfirmaDespacho">Continuar</button>
+    <button class="btn-secundario" id="btnVolver2">← Volver</button>
+  </div>
+
+  <!-- PASO 3: nombre de muestra -->
+  <div class="card paso hidden" id="paso3">
+    <h2>3. Nombre de la muestra</h2>
+    <label class="campo">Tal como figura en la etiqueta/bolsa:</label>
+    <input type="text" id="inputNombreMuestra" placeholder="Ej: AR0082609917">
+    <button class="btn-grande" id="btnConfirmaNombre">Continuar</button>
+    <button class="btn-secundario" id="btnVolver3">← Volver</button>
+  </div>
+
+  <!-- PASO 4: malla -->
+  <div class="card paso hidden" id="paso4">
+    <h2>4. ¿Qué malla controlás?</h2>
+    <div class="grid-btn" id="mallas">
+      <button class="opt" data-malla="10">Malla #10<br><small style="font-weight:500">(Kg · debe pasar ≥ 85%)</small></button>
+      <button class="opt" data-malla="200">Malla #200<br><small style="font-weight:500">(g · debe pasar ≥ 90%)</small></button>
+    </div>
+    <div id="avisoComplementaria"></div>
+    <button class="btn-secundario" id="btnVolver4">← Volver</button>
+  </div>
+
+  <!-- PASO 5: pesos -->
+  <div class="card paso hidden" id="paso5">
+    <h2>5. Pesada <span id="unidadTitulo"></span></h2>
+    <label class="campo">Peso inicial <span id="unidadA"></span>:</label>
+    <input type="number" step="0.001" id="pesoInicial" placeholder="0.000">
+    <label class="campo">Peso retenido <span id="unidadB"></span>:</label>
+    <input type="number" step="0.001" id="pesoRetenido" placeholder="0.000">
+    <button class="btn-grande" id="btnCalcular">Calcular % Pasante</button>
+    <button class="btn-secundario" id="btnVolver5">← Volver</button>
+  </div>
+
+  <!-- PASO 6: resultado -->
+  <div class="card paso hidden" id="paso6">
+    <h2>6. Resultado</h2>
+    <div class="resultado-pct" id="resultadoPct">—</div>
+    <div class="resultado-banner" id="resultadoBanner">—</div>
+    <div class="resumen" id="resumenDatos"></div>
+    <button class="btn-grande" id="btnGuardar">💾 Guardar en la base de datos</button>
+    <button class="btn-secundario" id="btnVolver6">← Volver y corregir</button>
+  </div>
+
+  <!-- PASO 7: confirmacion -->
+  <div class="card paso hidden" id="paso7">
+    <div style="text-align:center;">
+      <div style="font-size:60px;">✅</div>
+      <h2 style="text-align:center;">¡Guardado correctamente!</h2>
+      <p style="color:#666;">El registro ya está disponible en la base de datos.</p>
+      <button class="btn-grande" id="btnNuevo">➕ Cargar otro control</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const YY = (new Date().getFullYear() % 100).toString().padStart(2,'0'); // ej "26"
+
+const CONFIG_TIPOS = {
+  UG:  {prefijo:`PROD_UG${YY}_`,  digits:3},
+  MP:  {prefijo:`PROD_MP${YY}_`,  digits:3},
+  TR:  {prefijo:`PROD_TR${YY}_`,  digits:3},
+  DDH: {prefijo:`PROD_DDH${YY}_`, digits:3},
+  BH:  {prefijo:`PROD_BH${YY}_`,  digits:3},
+  AR:  {prefijo:`AR008${YY}-`,    digits:5},
+};
+
+let estado = {};
+
+function resetEstado(){
+  estado = {
+    tipo: null,
+    esPlanta: false,
+    numero: "",
+    despacho: null,
+    nombreMuestra: "",
+    malla: null,
+    unidad: null,
+    pesoInicial: null,
+    pesoRetenido: null,
+    porcentajePasante: null,
+    resultado: null
+  };
+}
+resetEstado();
+
+const pasos = ["paso1","paso2","paso3","paso4","paso5","paso6","paso7"];
+function mostrarPaso(id){
+  pasos.forEach(p => document.getElementById(p).classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
+  pintarStepper(id);
+}
+function pintarStepper(id){
+  const idx = pasos.indexOf(id);
+  const stepper = document.getElementById("stepper");
+  stepper.innerHTML = "";
+  for(let i=0;i<pasos.length-1;i++){ // el paso 7 (confirmación) no cuenta como punto
+    const d = document.createElement("div");
+    d.className = "dot" + (i<=idx ? " active":"");
+    stepper.appendChild(d);
+  }
+}
+
+// ---------- PASO 1 ----------
+document.querySelectorAll("#tipos .opt").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    estado.tipo = btn.dataset.tipo;
+    estado.esPlanta = false;
+    const cfg = CONFIG_TIPOS[estado.tipo];
+    document.getElementById("lblNumero").textContent =
+      `Escribí solo los últimos números (${cfg.digits} cifras aprox.):`;
+    document.getElementById("inputNumero").value = "";
+    document.getElementById("previewDespacho").textContent = "—";
+    mostrarPaso("paso2");
+  });
+});
+document.getElementById("btnPlanta").addEventListener("click", ()=>{
+  estado.tipo = "PLANTA";
+  estado.esPlanta = true;
+  estado.despacho = null;
+  mostrarPaso("paso3");
+});
+
+// ---------- PASO 2 ----------
+const inputNumero = document.getElementById("inputNumero");
+inputNumero.addEventListener("input", actualizarPreviewDespacho);
+function actualizarPreviewDespacho(){
+  const cfg = CONFIG_TIPOS[estado.tipo];
+  const raw = inputNumero.value.replace(/\D/g,"");
+  if(!raw){ document.getElementById("previewDespacho").textContent = "—"; return; }
+  const num = parseInt(raw,10).toString().padStart(cfg.digits,"0");
+  document.getElementById("previewDespacho").textContent = cfg.prefijo + num;
+}
+document.getElementById("btnConfirmaDespacho").addEventListener("click", ()=>{
+  const raw = inputNumero.value.replace(/\D/g,"");
+  if(!raw){ alert("Escribí el número del despacho."); return; }
+  const cfg = CONFIG_TIPOS[estado.tipo];
+  const num = parseInt(raw,10).toString().padStart(cfg.digits,"0");
+  estado.numero = num;
+  estado.despacho = cfg.prefijo + num;
+  mostrarPaso("paso3");
+});
+document.getElementById("btnVolver2").addEventListener("click", ()=>mostrarPaso("paso1"));
+
+// ---------- PASO 3 ----------
+document.getElementById("btnConfirmaNombre").addEventListener("click", ()=>{
+  const v = document.getElementById("inputNombreMuestra").value.trim();
+  if(!v){ alert("Escribí el nombre de la muestra."); return; }
+  estado.nombreMuestra = v;
+  document.getElementById("avisoComplementaria").innerHTML = "";
+  mostrarPaso("paso4");
+});
+document.getElementById("btnVolver3").addEventListener("click", ()=>{
+  mostrarPaso(estado.esPlanta ? "paso1" : "paso2");
+});
+
+// ---------- PASO 4 ----------
+document.querySelectorAll("#mallas .opt").forEach(btn=>{
+  btn.addEventListener("click", async ()=>{
+    estado.malla = btn.dataset.malla;
+    estado.unidad = estado.malla === "10" ? "kg" : "g";
+    document.getElementById("unidadTitulo").textContent = `Malla #${estado.malla}`;
+    document.getElementById("unidadA").textContent = `(${estado.unidad})`;
+    document.getElementById("unidadB").textContent = `(${estado.unidad})`;
+    document.getElementById("pesoInicial").value = "";
+    document.getElementById("pesoRetenido").value = "";
+    await chequearComplementaria();
+    mostrarPaso("paso5");
+  });
+});
+document.getElementById("btnVolver4").addEventListener("click", ()=>mostrarPaso("paso3"));
+
+async function chequearComplementaria(){
+  const claveSpan = document.getElementById("avisoComplementaria");
+  claveSpan.innerHTML = "";
+  const clave = estado.despacho || estado.nombreMuestra;
+  const otraMalla = estado.malla === "10" ? "200" : "10";
+  try{
+    const snap = await db.collection(COLECCION)
+      .where("clave","==",clave)
+      .where("malla","==",otraMalla)
+      .limit(1).get();
+    if(snap.empty){
+      claveSpan.innerHTML = `<div class="aviso warn">⚠️ Todavía no hay control de Malla #${otraMalla} para este despacho.</div>`;
+    } else {
+      claveSpan.innerHTML = `<div class="aviso ok">✅ Ya existe control de Malla #${otraMalla} para este despacho.</div>`;
+    }
+  }catch(e){
+    console.warn("No se pudo chequear la malla complementaria:", e);
+  }
+}
+
+// ---------- PASO 5 ----------
+document.getElementById("btnCalcular").addEventListener("click", ()=>{
+  const pi = parseFloat(document.getElementById("pesoInicial").value);
+  const pr = parseFloat(document.getElementById("pesoRetenido").value);
+  if(isNaN(pi) || pi<=0){ alert("Ingresá el peso inicial."); return; }
+  if(isNaN(pr) || pr<0){ alert("Ingresá el peso retenido."); return; }
+  if(pr > pi){ alert("El peso retenido no puede ser mayor al peso inicial."); return; }
+
+  estado.pesoInicial = pi;
+  estado.pesoRetenido = pr;
+  const pct = ((pi - pr) / pi) * 100;
+  estado.porcentajePasante = Math.round(pct*100)/100;
+
+  const umbral = estado.malla === "10" ? 85 : 90;
+  estado.resultado = estado.porcentajePasante >= umbral ? "PASA" : "NO PASA";
+
+  document.getElementById("resultadoPct").textContent = estado.porcentajePasante.toFixed(2) + "%";
+  document.getElementById("resultadoPct").style.color = estado.resultado==="PASA" ? "var(--verde)" : "var(--rojo)";
+
+  const banner = document.getElementById("resultadoBanner");
+  banner.textContent = estado.resultado === "PASA" ? "✅ PASA" : "❌ NO PASA";
+  banner.className = "resultado-banner " + (estado.resultado==="PASA" ? "pasa":"nopasa");
+
+  document.getElementById("resumenDatos").innerHTML = `
+    <b>Tipo:</b> ${estado.tipo}${estado.despacho ? " · <b>Despacho:</b> "+estado.despacho : ""}<br>
+    <b>Muestra:</b> ${estado.nombreMuestra}<br>
+    <b>Malla:</b> #${estado.malla} (umbral ≥ ${umbral}%)<br>
+    <b>Peso inicial:</b> ${pi} ${estado.unidad} &nbsp;|&nbsp; <b>Retenido:</b> ${pr} ${estado.unidad}
+  `;
+  mostrarPaso("paso6");
+});
+document.getElementById("btnVolver5").addEventListener("click", ()=>mostrarPaso("paso4"));
+
+// ---------- PASO 6: guardar ----------
+document.getElementById("btnGuardar").addEventListener("click", async ()=>{
+  const btn = document.getElementById("btnGuardar");
+  btn.disabled = true;
+  btn.textContent = "Guardando...";
+  try{
+    await db.collection(COLECCION).add({
+      tipo_muestra: estado.tipo,
+      despacho: estado.despacho,
+      nombre_muestra: estado.nombreMuestra,
+      clave: estado.despacho || estado.nombreMuestra,
+      malla: estado.malla,
+      unidad: estado.unidad,
+      peso_inicial: estado.pesoInicial,
+      peso_retenido: estado.pesoRetenido,
+      porcentaje_pasante: estado.porcentajePasante,
+      resultado: estado.resultado,
+      fecha: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    mostrarPaso("paso7");
+  }catch(e){
+    alert("No se pudo guardar. Revisá la conexión a internet e intentá de nuevo.\n\n" + e.message);
+  }finally{
+    btn.disabled = false;
+    btn.textContent = "💾 Guardar en la base de datos";
+  }
+});
+document.getElementById("btnVolver6").addEventListener("click", ()=>mostrarPaso("paso5"));
+
+// ---------- PASO 7 ----------
+document.getElementById("btnNuevo").addEventListener("click", ()=>{
+  resetEstado();
+  mostrarPaso("paso1");
+});
+
+mostrarPaso("paso1");
+</script>
+
+</body>
+</html>
